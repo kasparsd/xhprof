@@ -184,7 +184,7 @@ PHP_FUNCTION(xhprof_disable)
 {
     if (XHPROF_G(enabled)) {
         hp_stop();
-        RETURN_ZVAL(&XHPROF_G(stats_count), 1, 1);
+        RETURN_ZVAL(&XHPROF_G(stats_count), 1, 0);
     }
     /* else null is returned */
 }
@@ -214,7 +214,7 @@ PHP_FUNCTION(xhprof_sample_disable)
 {
     if (XHPROF_G(enabled)) {
         hp_stop();
-        RETURN_ZVAL(&XHPROF_G(stats_count), 1, 1);
+        RETURN_ZVAL(&XHPROF_G(stats_count), 1, 0);
     }
   /* else null is returned */
 }
