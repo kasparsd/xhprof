@@ -84,16 +84,13 @@ static zend_always_inline zend_string *hp_get_trace_callback(zend_string *functi
         callback = (hp_trace_callback*)zend_hash_find_ptr(XHPROF_G(trace_callbacks), function_name);
         if (callback) {
             trace_name = (*callback)(function_name, data);
-        } else {
-            return function_name;
+            zend_string_release(function_name);
+            return trace_name;
         }
-    } else {
-        return function_name;
     }
-
-    zend_string_release(function_name);
-
-    return trace_name;
+    
+    /* No callback found, return the original function_name */
+    return function_name;
 }
 
 static zend_always_inline hp_entry_t *hp_fast_alloc_hprof_entry()
