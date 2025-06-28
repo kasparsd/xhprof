@@ -111,6 +111,7 @@ static zend_always_inline void hp_fast_free_hprof_entry(hp_entry_t *p)
 {
     if (p->name_hprof != NULL) {
         zend_string_release(p->name_hprof);
+        p->name_hprof = NULL;  /* Prevent double-free if entry is reused */
     }
 
     /* we use/overload the prev_hprof field in the structure to link entries in
