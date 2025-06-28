@@ -462,7 +462,7 @@ hp_ignored_functions *hp_ignored_functions_init(zval *values)
     for (; names[i] != NULL; i++) {
         zend_ulong hash = ZSTR_HASH(names[i]);
         int idx = hash % XHPROF_MAX_IGNORED_FUNCTIONS;
-        functions->filter[idx] = 1;  /* Set to 1 to indicate presence, not the hash value */
+        functions->filter[idx] = hash;
     }
 
     return functions;
