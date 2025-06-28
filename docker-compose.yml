@@ -1,0 +1,33 @@
+services:
+  cli:
+    build: 
+      context: .
+    volumes:
+      - .:/xhprof
+  
+  test-php8.4:
+    build: 
+      context: .
+      args:
+        PHP_VERSION: 8.4
+    volumes:
+      - .:/xhprof
+    command: bash -c "cd extension && phpize && ./configure --enable-xhprof && make clean && make && make test"
+  
+  test-php8.2:
+    build: 
+      context: .
+      args:
+        PHP_VERSION: 8.2
+    volumes:
+      - .:/xhprof
+    command: bash -c "cd extension && phpize && ./configure --enable-xhprof && make clean && make && make test"
+
+  test-php7.2:
+    build: 
+      context: .
+      args:
+        PHP_VERSION: 7.2
+    volumes:
+      - .:/xhprof
+    command: bash -c "cd extension && phpize && ./configure --enable-xhprof && make clean && make && make test"
