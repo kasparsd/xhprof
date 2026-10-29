@@ -13,6 +13,16 @@ This version supports PHP7 and PHP8
 - 8.2
 
 # Installation
+
+### PIE
+
+Install with [PIE](https://github.com/php/pie), which builds the extension from source on Linux and macOS and downloads a prebuilt DLL on Windows:
+
+```
+pie install wpelevator/xhprof
+```
+
+### From source
 ```
 git clone https://github.com/longxinH/xhprof.git ./xhprof
 cd xhprof/extension/
