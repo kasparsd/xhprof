@@ -5,7 +5,7 @@ The extension lives in `extension/` (C, built with `phpize`); the report UI and 
 ## Pull requests
 
 - Run the tests on the PHP versions you touched, ideally `make test-all` (and `make test-legacy` for changes that could affect PHP 7.x).
-- Add a `.phpt` regression test in `extension/tests/` for every extension fix.
+- Add a `.phpt` regression test in `extension/tests/` for every extension fix, and a test in `tests/lib/` for changes to `xhprof_lib/`.
 - Keep code compatible with PHP 7.2, the oldest version `composer.json` allows: no PHP 8-only syntax or functions such as `str_contains()`.
 - GitHub Actions runs the same tests on Linux (PHP 7.2–8.5, NTS and ZTS, and with opcache) and Windows.
 
@@ -24,6 +24,8 @@ The root `Makefile` wraps the scripts and Docker commands below. Each target is 
 | `make test-valgrind` | The same, under valgrind (slow) |
 | `make test-all` | PHP 8.2–8.5, NTS and ZTS |
 | `make test-legacy` | PHP 7.2–8.1 NTS, which `composer.json` still allows |
+| `make bench` | Profiler overhead per call (`tools/bench/`), `REPS=n` for more repetitions |
+| `make test-lib` | The PHP library tests in `tests/lib/` (`php tests/lib/run.php`) |
 | `make test-host` | Build and test with the PHP on this machine, without Docker |
 | `make shell` | Bash in the dev image, with the repository at `/src` |
 | `make ui` | Report UI on <http://localhost:8080> |

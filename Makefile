@@ -12,12 +12,13 @@ VARIANT ?= cli
 # 0 skips gdb, valgrind and graphviz; needed for PHP 7.2-8.0 images.
 DEBUG_TOOLS ?= 1
 TESTS ?=
+REPS ?=
 
 COMPOSE = PHP_VERSION=$(PHP) PHP_VARIANT=$(VARIANT) DEBUG_TOOLS=$(DEBUG_TOOLS) \
 	docker compose -f tools/docker/compose.yaml
 RUN = $(COMPOSE) run --rm --build php
 
-.PHONY: test test-opcache test-valgrind test-all test-legacy test-host shell ui image
+.PHONY: test test-opcache test-valgrind test-all test-legacy test-host test-lib bench shell ui image
 
 # Build and run the tests in the dev image.
 test:
@@ -38,6 +39,14 @@ test-all:
 # PHP 7.2-8.1 NTS, which composer.json still allows.
 test-legacy:
 	PHP_VERSIONS="7.2 7.3 7.4 8.0 8.1" PHP_VARIANTS=cli DEBUG_TOOLS=0 tools/docker/test-all.sh $(TESTS)
+
+# PHP library tests (xhprof_lib), which don't need the extension.
+test-lib:
+	$(RUN) php tests/lib/run.php
+
+# Profiler overhead per call (see tools/bench). Pass REPS=n for more repetitions.
+bench:
+	$(RUN) tools/bench/run.sh $(REPS)
 
 # Build and test with the PHP on this machine, without Docker.
 test-host:

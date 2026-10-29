@@ -80,6 +80,10 @@
    <file name="extension/tests/xhprof_011_prepend.php" role="test" />
    <file name="extension/tests/xhprof_012.phpt" role="test" />
    <file name="extension/tests/xhprof_013.phpt" role="test" />
+   <file name="extension/tests/xhprof_014.phpt" role="test" />
+   <file name="extension/tests/xhprof_015.phpt" role="test" />
+   <file name="extension/tests/xhprof_016.phpt" role="test" />
+   <file name="extension/tests/xhprof_017.phpt" role="test" />
    <file name="extension/tests/xhprof_runs_001.phpt" role="test" />
    <file name="extension/tests/xhprof_runs_002.phpt" role="test" />
    <file name="extension/config.m4" role="src" />
@@ -107,7 +111,9 @@
    <file name="xhprof_lib/display/typeahead_common.php" role="php" />
    <file name="xhprof_lib/display/xhprof.php" role="php" />
    <file name="xhprof_lib/utils/callgraph_utils.php" role="php" />
+   <file name="xhprof_lib/utils/xhprof_export.php" role="php" />
    <file name="xhprof_lib/utils/xhprof_lib.php" role="php" />
+   <file name="xhprof_lib/utils/xhprof_production.php" role="php" />
    <file name="xhprof_lib/utils/xhprof_runs.php" role="php" />
    <file name="CHANGELOG" role="doc" />
    <file name="CREDITS" role="doc" />

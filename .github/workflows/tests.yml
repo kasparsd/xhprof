@@ -81,3 +81,22 @@ jobs:
           REPORT_EXIT_STATUS: 1
           TEST_PHP_ARGS: ${{ steps.curl.outputs.args }} ${{ steps.opcache.outputs.args }}
         run: make test TESTS="--show-diff tests/"
+
+  library:
+    name: Library PHP ${{ matrix.php }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['7.2', '7.3', '7.4', '8.0', '8.1', '8.2', '8.3', '8.4', '8.5']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: none
+
+      - name: Test
+        run: php tests/lib/run.php

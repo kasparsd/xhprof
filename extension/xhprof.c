@@ -168,6 +168,7 @@ PHP_FUNCTION(xhprof_enable)
     }
 
     hp_get_ignored_functions_from_arg(optional_array);
+    hp_get_limits_from_arg(optional_array);
 
     hp_begin(XHPROF_MODE_HIERARCHICAL, xhprof_flags);
 }
@@ -199,6 +200,7 @@ PHP_FUNCTION(xhprof_sample_enable)
 {
     zend_long xhprof_flags = 0;    /* XHProf flags */
     hp_get_ignored_functions_from_arg(NULL);
+    hp_get_limits_from_arg(NULL);
     hp_begin(XHPROF_MODE_SAMPLED, xhprof_flags);
 }
 
@@ -227,7 +229,13 @@ static void php_xhprof_init_globals(zend_xhprof_globals *xhprof_globals)
     xhprof_globals->entries = NULL;
     xhprof_globals->root = NULL;
     xhprof_globals->trace_callbacks = NULL;
+#if PHP_VERSION_ID >= 80100
+    xhprof_globals->fiber_stacks = NULL;
+#endif
     xhprof_globals->ignored_functions = NULL;
+    xhprof_globals->max_depth = 0;
+    xhprof_globals->max_calls = 0;
+    xhprof_globals->call_count = 0;
     xhprof_globals->sampling_interval = XHPROF_DEFAULT_SAMPLING_INTERVAL;
     xhprof_globals->sampling_depth = INT_MAX;
 
@@ -238,7 +246,7 @@ static void php_xhprof_init_globals(zend_xhprof_globals *xhprof_globals)
 
     int i;
 
-    for (i = 0; i < XHPROF_FUNC_HASH_COUNTERS_SIZE; i++) {
+    for (i = 0; i <= XHPROF_FUNC_HASH_COUNTERS_SIZE; i++) {
         xhprof_globals->func_hash_counters[i] = 0;
     }
 
@@ -270,6 +278,9 @@ PHP_MINIT_FUNCTION(xhprof)
 
 #if PHP_VERSION_ID >= 80000
     zend_observer_fcall_register(tracer_observer);
+#if PHP_VERSION_ID >= 80100
+    zend_observer_fiber_switch_register(hp_fiber_switch);
+#endif
 #else
     /* Replace zend_execute with our proxy */
     _zend_execute_ex = zend_execute_ex;
@@ -376,12 +387,44 @@ static void hp_register_constants(INIT_FUNC_ARGS)
  */
 void hp_get_ignored_functions_from_arg(zval *args)
 {
-    if (args == NULL) {
+    if (args == NULL || Z_TYPE_P(args) != IS_ARRAY) {
         return;
     }
 
     zval *pzval = zend_hash_str_find(Z_ARRVAL_P(args), "ignored_functions", sizeof("ignored_functions") - 1);
     XHPROF_G(ignored_functions) = hp_ignored_functions_init(pzval);
+}
+
+/**
+ * Parse the optional "max_depth" and "max_calls" limits. They are only taken
+ * when profiling is not already running, so a nested xhprof_enable() cannot
+ * change the limits of the run in progress.
+ */
+void hp_get_limits_from_arg(zval *args)
+{
+    zval *pzval;
+
+    if (XHPROF_G(enabled)) {
+        return;
+    }
+
+    XHPROF_G(max_depth) = 0;
+    XHPROF_G(max_calls) = 0;
+    XHPROF_G(call_count) = 0;
+
+    if (args == NULL || Z_TYPE_P(args) != IS_ARRAY) {
+        return;
+    }
+
+    pzval = zend_hash_str_find(Z_ARRVAL_P(args), "max_depth", sizeof("max_depth") - 1);
+    if (pzval && Z_TYPE_P(pzval) == IS_LONG && Z_LVAL_P(pzval) > 0) {
+        XHPROF_G(max_depth) = Z_LVAL_P(pzval);
+    }
+
+    pzval = zend_hash_str_find(Z_ARRVAL_P(args), "max_calls", sizeof("max_calls") - 1);
+    if (pzval && Z_TYPE_P(pzval) == IS_LONG && Z_LVAL_P(pzval) > 0) {
+        XHPROF_G(max_calls) = Z_LVAL_P(pzval);
+    }
 }
 
 void hp_ignored_functions_clear(hp_ignored_functions *functions)
@@ -541,15 +584,38 @@ void hp_clean_profiler_state()
  */
 size_t hp_get_entry_name(hp_entry_t *entry, char *result_buf, size_t result_len)
 {
-    size_t len;
+    size_t name_len = ZSTR_LEN(entry->name_hprof);
+    size_t len = name_len;
+    size_t copy;
+    char level[16];
+    size_t level_len = 0;
 
-    /* Add '@recurse_level' if required */
-    /* NOTE:  Dont use snprintf's return val as it is compiler dependent */
+    /* Same result as snprintf("%s") or snprintf("%s@%d"), which this used to
+     * call twice per profiled call: truncated to result_len - 1 bytes, always
+     * NUL terminated, returning the length the full name would have had. */
     if (entry->rlvl_hprof) {
-        len = snprintf(result_buf, result_len, "%s@%d", ZSTR_VAL(entry->name_hprof), entry->rlvl_hprof);
-    } else {
-        len = snprintf(result_buf, result_len, "%s", ZSTR_VAL(entry->name_hprof));
+        level_len = (size_t)snprintf(level, sizeof(level), "@%d", entry->rlvl_hprof);
+        len += level_len;
     }
+
+    if (result_len == 0) {
+        return len;
+    }
+
+    copy = name_len < result_len - 1 ? name_len : result_len - 1;
+    memcpy(result_buf, ZSTR_VAL(entry->name_hprof), copy);
+
+    if (level_len && copy == name_len && level_len < result_len - copy) {
+        memcpy(result_buf + copy, level, level_len);
+        copy += level_len;
+    } else if (level_len && copy == name_len) {
+        /* Only part of the level fits. */
+        size_t room = result_len - 1 - copy;
+        memcpy(result_buf + copy, level, room);
+        copy += room;
+    }
+
+    result_buf[copy] = '\0';
 
     return len;
 }
@@ -1245,6 +1311,11 @@ static void hp_stop()
     while (XHPROF_G(entries)) {
         end_profiling();
     }
+
+#if PHP_VERSION_ID >= 80100
+    /* Stacks of suspended fibers. */
+    hp_free_fiber_stacks();
+#endif
 
     /* Stop profiling */
     XHPROF_G(enabled) = 0;

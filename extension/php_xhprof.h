@@ -46,6 +46,10 @@ extern zend_module_entry xhprof_module_entry;
 #define XHPROF_VERSION       "2.3.11"
 
 #define XHPROF_FUNC_HASH_COUNTERS_SIZE   1024
+/* The counter slot after the hashed ones is used by entries that are not
+ * recorded because of max_depth or max_calls, so they never touch the counter
+ * of a real function. */
+#define XHPROF_LIMIT_COUNTER             XHPROF_FUNC_HASH_COUNTERS_SIZE
 
 /* Fictitious function name to represent top of the call tree. The paranthesis
  * in the name is to ensure we don't conflict with user function names.  */
@@ -106,6 +110,7 @@ typedef struct hp_entry_t {
     zend_ulong              tsc_start;         /* start value for TSC counter  */
     zend_ulong              cpu_start;
     zend_ulong              hash_code;     /* hash_code for the function name  */
+    int                     depth;             /* 0 for main(), +1 per level   */
 #if PHP_VERSION_ID >= 80000
     int                     is_trace;
 #endif
@@ -183,6 +188,7 @@ static void hp_fast_free_hprof_entry(hp_entry_t *p);
 static void incr_us_interval(struct timeval *start, zend_ulong incr);
 
 static void hp_get_ignored_functions_from_arg(zval *args);
+static void hp_get_limits_from_arg(zval *args);
 
 static inline void hp_array_del(zend_string **names);
 
@@ -245,9 +251,20 @@ ZEND_BEGIN_MODULE_GLOBALS(xhprof)
     zend_string *root;
 
     /* counter table indexed by hash value of function names. */
-    zend_ulong func_hash_counters[XHPROF_FUNC_HASH_COUNTERS_SIZE];
+    zend_ulong func_hash_counters[XHPROF_FUNC_HASH_COUNTERS_SIZE + 1];
+
+    /* Safety limits for hierarchical mode, 0 means unlimited. Calls that
+     * exceed them are not recorded, but still run normally. */
+    zend_long max_depth;
+    zend_long max_calls;
+    zend_long call_count;
 
     HashTable *trace_callbacks;
+
+#if PHP_VERSION_ID >= 80100
+    /* Entry stacks of fiber contexts that are not running, by context. */
+    HashTable *fiber_stacks;
+#endif
 
     /* Table of ignored function names and their filter */
     hp_ignored_functions *ignored_functions;
