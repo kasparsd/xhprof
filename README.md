@@ -126,6 +126,24 @@ The PECL package is published from upstream [longxinH/xhprof](https://github.com
 
 `XHProfRuns_Default::save_run()` stores each run as JSON in `<run id>.<namespace>.xhprof`. Older versions wrote PHP `serialize()` output; those files are still read, but without allowing any class to be instantiated, so a run file that someone else can write to cannot inject objects. Runs written now cannot be read by an older xhprof UI.
 
+# Flame graph export
+
+`xhprof_lib/utils/xhprof_export.php` turns the data from `xhprof_disable()` into formats that flame graph viewers read:
+
+```php
+require 'xhprof_lib/utils/xhprof_export.php';
+
+$data = xhprof_disable();
+
+// "main();foo;bar 1234" per line, for flamegraph.pl and inferno.
+file_put_contents('profile.folded', xhprof_export_collapsed($data));
+
+// Open in https://www.speedscope.app
+file_put_contents('profile.speedscope.json', xhprof_export_speedscope($data, 'wt', 'GET /'));
+```
+
+The second argument is the metric: `wt` (default), `cpu`, `mu`, `pmu` or `ct`. XHProf only keeps one row per `parent==>child` pair, not whole call stacks, so the stacks are rebuilt from those pairs. Totals are exact. When a function has several callers, the time spent below it is split between them in proportion to the time each caller spent in it, so deep stacks below shared functions are an estimate. It is a flame graph of the aggregated data, not a timeline.
+
 # Known limitations
 
 ### Opcache can hide small functions

@@ -109,6 +109,7 @@
    <file name="xhprof_lib/display/typeahead_common.php" role="php" />
    <file name="xhprof_lib/display/xhprof.php" role="php" />
    <file name="xhprof_lib/utils/callgraph_utils.php" role="php" />
+   <file name="xhprof_lib/utils/xhprof_export.php" role="php" />
    <file name="xhprof_lib/utils/xhprof_lib.php" role="php" />
    <file name="xhprof_lib/utils/xhprof_runs.php" role="php" />
    <file name="CHANGELOG" role="doc" />
