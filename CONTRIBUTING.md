@@ -24,6 +24,7 @@ The root `Makefile` wraps the scripts and Docker commands below. Each target is 
 | `make test-valgrind` | The same, under valgrind (slow) |
 | `make test-all` | PHP 8.2–8.5, NTS and ZTS |
 | `make test-legacy` | PHP 7.2–8.1 NTS, which `composer.json` still allows |
+| `make bench` | Profiler overhead per call (`tools/bench/`), `REPS=n` for more repetitions |
 | `make test-lib` | The PHP library tests in `tests/lib/` (`php tests/lib/run.php`) |
 | `make test-host` | Build and test with the PHP on this machine, without Docker |
 | `make shell` | Bash in the dev image, with the repository at `/src` |

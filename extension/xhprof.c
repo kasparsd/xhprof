@@ -584,15 +584,38 @@ void hp_clean_profiler_state()
  */
 size_t hp_get_entry_name(hp_entry_t *entry, char *result_buf, size_t result_len)
 {
-    size_t len;
+    size_t name_len = ZSTR_LEN(entry->name_hprof);
+    size_t len = name_len;
+    size_t copy;
+    char level[16];
+    size_t level_len = 0;
 
-    /* Add '@recurse_level' if required */
-    /* NOTE:  Dont use snprintf's return val as it is compiler dependent */
+    /* Same result as snprintf("%s") or snprintf("%s@%d"), which this used to
+     * call twice per profiled call: truncated to result_len - 1 bytes, always
+     * NUL terminated, returning the length the full name would have had. */
     if (entry->rlvl_hprof) {
-        len = snprintf(result_buf, result_len, "%s@%d", ZSTR_VAL(entry->name_hprof), entry->rlvl_hprof);
-    } else {
-        len = snprintf(result_buf, result_len, "%s", ZSTR_VAL(entry->name_hprof));
+        level_len = (size_t)snprintf(level, sizeof(level), "@%d", entry->rlvl_hprof);
+        len += level_len;
     }
+
+    if (result_len == 0) {
+        return len;
+    }
+
+    copy = name_len < result_len - 1 ? name_len : result_len - 1;
+    memcpy(result_buf, ZSTR_VAL(entry->name_hprof), copy);
+
+    if (level_len && copy == name_len && level_len < result_len - copy) {
+        memcpy(result_buf + copy, level, level_len);
+        copy += level_len;
+    } else if (level_len && copy == name_len) {
+        /* Only part of the level fits. */
+        size_t room = result_len - 1 - copy;
+        memcpy(result_buf + copy, level, room);
+        copy += room;
+    }
+
+    result_buf[copy] = '\0';
 
     return len;
 }

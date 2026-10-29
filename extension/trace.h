@@ -67,7 +67,18 @@ static zend_always_inline zend_string *hp_get_function_name(zend_execute_data *e
     }
 
     if (curr_func->common.scope != NULL) {
-        real_function_name = strpprintf(0, "%s::%s", curr_func->common.scope->name->val, ZSTR_VAL(curr_func->common.function_name));
+        /* "Class::method" built by hand, strpprintf() is the slowest part of
+         * naming a method call. */
+        zend_string *scope_name = curr_func->common.scope->name;
+        zend_string *method_name = curr_func->common.function_name;
+        /* strlen(): anonymous class names contain a NUL, and strpprintf("%s") stopped there. */
+        size_t scope_len = strlen(ZSTR_VAL(scope_name));
+
+        real_function_name = zend_string_alloc(scope_len + 2 + ZSTR_LEN(method_name), 0);
+        memcpy(ZSTR_VAL(real_function_name), ZSTR_VAL(scope_name), scope_len);
+        ZSTR_VAL(real_function_name)[scope_len] = ':';
+        ZSTR_VAL(real_function_name)[scope_len + 1] = ':';
+        memcpy(ZSTR_VAL(real_function_name) + scope_len + 2, ZSTR_VAL(method_name), ZSTR_LEN(method_name) + 1);
     } else {
         real_function_name = zend_string_copy(curr_func->common.function_name);
     }

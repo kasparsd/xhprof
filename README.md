@@ -167,6 +167,10 @@ file_put_contents('profile.speedscope.json', xhprof_export_speedscope($data, 'wt
 
 The second argument is the metric: `wt` (default), `cpu`, `mu`, `pmu` or `ct`. XHProf only keeps one row per `parent==>child` pair, not whole call stacks, so the stacks are rebuilt from those pairs. Totals are exact. When a function has several callers, the time spent below it is split between them in proportion to the time each caller spent in it, so deep stacks below shared functions are an estimate. It is a flame graph of the aggregated data, not a timeline.
 
+# Overhead
+
+Measured with `make bench` (`tools/bench/`) on PHP 8.5.12 NTS in Docker on an Apple Silicon Mac, no opcache: about 115-145 ns per call with the default flags, about 180-205 ns with `XHPROF_FLAGS_MEMORY`, and about 650-750 ns with `XHPROF_FLAGS_CPU`. The CPU flag costs several times more than everything else because reading the process CPU clock is a system call on Linux. Leave it off unless you need CPU time, especially on production traffic. Calls cut off by `max_depth` or `max_calls` cost about 10 ns each. Numbers differ between machines, so run `make bench` on yours.
+
 # Known limitations
 
 ### Opcache can hide small functions
