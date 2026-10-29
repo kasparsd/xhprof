@@ -1,5 +1,12 @@
 --TEST--
 XHProfRuns_Default: run ids and namespaces cannot escape the output directory
+--SKIPIF--
+<?php
+// The Windows build copies the tests away from the rest of the repository.
+if (!file_exists(dirname(__FILE__).'/../../xhprof_lib/utils/xhprof_runs.php')) {
+    print 'skip xhprof_lib is not available next to the tests';
+}
+?>
 --FILE--
 <?php
 
