@@ -168,6 +168,7 @@ PHP_FUNCTION(xhprof_enable)
     }
 
     hp_get_ignored_functions_from_arg(optional_array);
+    hp_get_limits_from_arg(optional_array);
 
     hp_begin(XHPROF_MODE_HIERARCHICAL, xhprof_flags);
 }
@@ -199,6 +200,7 @@ PHP_FUNCTION(xhprof_sample_enable)
 {
     zend_long xhprof_flags = 0;    /* XHProf flags */
     hp_get_ignored_functions_from_arg(NULL);
+    hp_get_limits_from_arg(NULL);
     hp_begin(XHPROF_MODE_SAMPLED, xhprof_flags);
 }
 
@@ -231,6 +233,9 @@ static void php_xhprof_init_globals(zend_xhprof_globals *xhprof_globals)
     xhprof_globals->fiber_stacks = NULL;
 #endif
     xhprof_globals->ignored_functions = NULL;
+    xhprof_globals->max_depth = 0;
+    xhprof_globals->max_calls = 0;
+    xhprof_globals->call_count = 0;
     xhprof_globals->sampling_interval = XHPROF_DEFAULT_SAMPLING_INTERVAL;
     xhprof_globals->sampling_depth = INT_MAX;
 
@@ -241,7 +246,7 @@ static void php_xhprof_init_globals(zend_xhprof_globals *xhprof_globals)
 
     int i;
 
-    for (i = 0; i < XHPROF_FUNC_HASH_COUNTERS_SIZE; i++) {
+    for (i = 0; i <= XHPROF_FUNC_HASH_COUNTERS_SIZE; i++) {
         xhprof_globals->func_hash_counters[i] = 0;
     }
 
@@ -382,12 +387,44 @@ static void hp_register_constants(INIT_FUNC_ARGS)
  */
 void hp_get_ignored_functions_from_arg(zval *args)
 {
-    if (args == NULL) {
+    if (args == NULL || Z_TYPE_P(args) != IS_ARRAY) {
         return;
     }
 
     zval *pzval = zend_hash_str_find(Z_ARRVAL_P(args), "ignored_functions", sizeof("ignored_functions") - 1);
     XHPROF_G(ignored_functions) = hp_ignored_functions_init(pzval);
+}
+
+/**
+ * Parse the optional "max_depth" and "max_calls" limits. They are only taken
+ * when profiling is not already running, so a nested xhprof_enable() cannot
+ * change the limits of the run in progress.
+ */
+void hp_get_limits_from_arg(zval *args)
+{
+    zval *pzval;
+
+    if (XHPROF_G(enabled)) {
+        return;
+    }
+
+    XHPROF_G(max_depth) = 0;
+    XHPROF_G(max_calls) = 0;
+    XHPROF_G(call_count) = 0;
+
+    if (args == NULL || Z_TYPE_P(args) != IS_ARRAY) {
+        return;
+    }
+
+    pzval = zend_hash_str_find(Z_ARRVAL_P(args), "max_depth", sizeof("max_depth") - 1);
+    if (pzval && Z_TYPE_P(pzval) == IS_LONG && Z_LVAL_P(pzval) > 0) {
+        XHPROF_G(max_depth) = Z_LVAL_P(pzval);
+    }
+
+    pzval = zend_hash_str_find(Z_ARRVAL_P(args), "max_calls", sizeof("max_calls") - 1);
+    if (pzval && Z_TYPE_P(pzval) == IS_LONG && Z_LVAL_P(pzval) > 0) {
+        XHPROF_G(max_calls) = Z_LVAL_P(pzval);
+    }
 }
 
 void hp_ignored_functions_clear(hp_ignored_functions *functions)

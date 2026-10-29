@@ -123,6 +123,47 @@ static zend_always_inline void hp_fast_free_hprof_entry(hp_entry_t *p)
     XHPROF_G(entry_free_list) = p;
 }
 
+/* True when a call must not be recorded because of max_depth or max_calls. */
+static zend_always_inline int hp_over_limit(hp_entry_t *top)
+{
+    if (XHPROF_G(max_depth) > 0 && top->depth >= XHPROF_G(max_depth)) {
+        return 1;
+    }
+
+    if (XHPROF_G(max_calls) > 0) {
+        if (XHPROF_G(call_count) >= XHPROF_G(max_calls)) {
+            return 1;
+        }
+        XHPROF_G(call_count)++;
+    }
+
+    return 0;
+}
+
+/* Called instead of recording a call that is over a limit. Nothing deeper
+ * than a limited call is ever recorded (depth only grows, and the call count
+ * never goes down), so no recorded entry sits above one of these. */
+static zend_always_inline int hp_skip_limited_call(hp_entry_t **entries, zend_string *function_name)
+{
+    zend_string_release(function_name);
+
+#if PHP_VERSION_ID >= 80000
+    /* Observers pair begin and end for every call, so keep the stack balanced. */
+    hp_entry_t *cur_entry = hp_fast_alloc_hprof_entry();
+    (cur_entry)->name_hprof = zend_string_copy((*(entries))->name_hprof);
+    (cur_entry)->prev_hprof = (*(entries));
+    (cur_entry)->is_trace = 0;
+    (cur_entry)->hash_code = XHPROF_LIMIT_COUNTER;
+    (cur_entry)->rlvl_hprof = 0;
+    (cur_entry)->depth = (*(entries))->depth + 1;
+    XHPROF_G(func_hash_counters[XHPROF_LIMIT_COUNTER])++;
+    (*(entries)) = (cur_entry);
+    return 1;
+#else
+    return 0;
+#endif
+}
+
 static zend_always_inline int begin_profiling(zend_string *root_symbol, zend_execute_data *execute_data)
 {
     zend_string *function_name;
@@ -140,6 +181,11 @@ static zend_always_inline int begin_profiling(zend_string *root_symbol, zend_exe
 
     zend_ulong hash_code = ZSTR_HASH(function_name);
     int profile_curr = !hp_ignore_entry_work(hash_code, function_name);
+
+    if (profile_curr && (*entries) != NULL && hp_over_limit(*entries)) {
+        return hp_skip_limited_call(entries, function_name);
+    }
+
     if (profile_curr) {
         if (execute_data != NULL) {
             function_name = hp_get_trace_callback(function_name, execute_data);
@@ -150,6 +196,7 @@ static zend_always_inline int begin_profiling(zend_string *root_symbol, zend_exe
         (cur_entry)->name_hprof = function_name;
         (cur_entry)->prev_hprof = (*(entries));
         (cur_entry)->rlvl_hprof = 0;
+        (cur_entry)->depth = (*(entries)) ? (*(entries))->depth + 1 : 0;
 #if PHP_VERSION_ID >= 80000
         (cur_entry)->is_trace = 1;
 #endif
@@ -167,6 +214,7 @@ static zend_always_inline int begin_profiling(zend_string *root_symbol, zend_exe
         (cur_entry)->is_trace = 0;
         (cur_entry)->hash_code = (*(entries))->hash_code;
         (cur_entry)->rlvl_hprof = 0;
+        (cur_entry)->depth = (*(entries))->depth + 1;
         (*(entries)) = (cur_entry);
         profile_curr = 1;
 #endif
@@ -228,13 +276,14 @@ static void hp_discard_entry_stack(hp_entry_t *p)
     }
 }
 
-static hp_entry_t *hp_new_fiber_base_entry(zend_string *name, zend_ulong hash_code)
+static hp_entry_t *hp_new_fiber_base_entry(zend_string *name, zend_ulong hash_code, int depth)
 {
     hp_entry_t *base = hp_fast_alloc_hprof_entry();
 
     base->name_hprof = zend_string_copy(name);
     base->prev_hprof = NULL;
     base->rlvl_hprof = 0;
+    base->depth = depth;
     base->hash_code = hash_code;
     /* Popping it must not record a call. */
     base->is_trace = 0;
@@ -296,7 +345,7 @@ static void hp_fiber_switch(zend_fiber_context *from, zend_fiber_context *to)
     if (next) {
         zend_hash_index_del(XHPROF_G(fiber_stacks), (zend_ulong)(uintptr_t)to);
     } else {
-        next = hp_new_fiber_base_entry(name, hash_code);
+        next = hp_new_fiber_base_entry(name, hash_code, top ? top->depth : 0);
     }
 
     if (from->status == ZEND_FIBER_STATUS_DEAD) {

@@ -126,6 +126,29 @@ The PECL package is published from upstream [longxinH/xhprof](https://github.com
 
 `XHProfRuns_Default::save_run()` stores each run as JSON in `<run id>.<namespace>.xhprof`. Older versions wrote PHP `serialize()` output; those files are still read, but without allowing any class to be instantiated, so a run file that someone else can write to cannot inject objects. Runs written now cannot be read by an older xhprof UI.
 
+# Profiling a share of production requests
+
+`xhprof_production_start()` profiles a random share of requests and saves each run when the request ends. It never throws and never prints: a missing extension, an unwritable output directory or a failed save is written to the error log and the request carries on. It does not start profiling at all when the run could not be saved.
+
+```php
+require 'xhprof_lib/utils/xhprof_lib.php';
+require 'xhprof_lib/utils/xhprof_runs.php';
+require 'xhprof_lib/utils/xhprof_production.php';
+
+xhprof_production_start(array(
+    'sample_rate' => 0.01,          // 1 request in 100
+    'dir'         => '/var/xhprof', // or xhprof.output_dir / XHPROF_OUTPUT_DIR
+    'namespace'   => 'myapp',
+    'flags'       => XHPROF_FLAGS_CPU | XHPROF_FLAGS_MEMORY,
+    'max_depth'   => 200,
+    'max_calls'   => 2000000,
+));
+```
+
+Call it as early as possible in the request. The run is saved from a shutdown function, so code that runs after the shutdown functions, such as destructors, is not part of the profile. With PHP-FPM the response is sent first (`fastcgi_finish_request()`), unless you pass `'finish_request' => false`. Pass `'force' => true` to profile a request regardless of `sample_rate`, for example when it carries a trusted header. See the comments in `xhprof_lib/utils/xhprof_production.php` for all options.
+
+`max_depth` and `max_calls` are also options of `xhprof_enable($flags, array('max_depth' => 200, 'max_calls' => 2000000))`. Calls nested deeper than `max_depth`, and calls after the first `max_calls`, run normally but are not recorded. This keeps the result small for deep recursion (each recursion level is a separate entry in the profile). It does not remove the cost of the profiler hooks, so use `sample_rate` to limit overhead. Recorded calls still add up correctly; time spent in unrecorded calls is counted in the function that made them.
+
 # Flame graph export
 
 `xhprof_lib/utils/xhprof_export.php` turns the data from `xhprof_disable()` into formats that flame graph viewers read:

@@ -49,7 +49,8 @@ interface iXHProfRuns {
    * the implementation of this method must generated a
    * unique run id for this saved XHProf run.
    *
-   * Returns the run id for the saved XHProf run.
+   * Returns the run id for the saved XHProf run, or null if it could not
+   * be saved. Implementations should log failures instead of throwing.
    *
    */
   public function save_run($xhprof_data, $type, $run_id = null);
@@ -116,6 +117,13 @@ class XHProfRuns_Default implements iXHProfRuns {
     $this->dir = $dir;
   }
 
+  /**
+   * Whether runs can be saved: the directory exists and is writable.
+   */
+  public function is_writable() {
+    return is_dir($this->dir) && is_writable($this->dir);
+  }
+
   public function get_run($run_id, $type, &$run_desc) {
     if (!$this->is_valid_name($run_id) || !$this->is_valid_name($type)) {
       xhprof_error("Invalid run id or namespace");
@@ -156,13 +164,23 @@ class XHProfRuns_Default implements iXHProfRuns {
     }
 
     $file_name = $this->file_name($run_id, $type);
-    $file = fopen($file_name, 'w');
 
-    if ($file) {
-      fwrite($file, $encoded);
-      fclose($file);
-    } else {
-      xhprof_error("Could not open $file_name\n");
+    // Write to a temporary file first so a reader never sees half a run, and
+    // so a full disk leaves nothing behind. Failures are logged, never
+    // thrown or shown: saving a profile must not break the request.
+    $temp_name = $file_name . '.' . uniqid('', true) . '.tmp';
+    $written = @file_put_contents($temp_name, $encoded);
+
+    if ($written === false || $written !== strlen($encoded)) {
+      @unlink($temp_name);
+      xhprof_error("Could not write $file_name");
+      return null;
+    }
+
+    if (!@rename($temp_name, $file_name)) {
+      @unlink($temp_name);
+      xhprof_error("Could not move run to $file_name");
+      return null;
     }
 
     // echo "Saved run in {$file_name}.\nRun id = {$run_id}.\n";
