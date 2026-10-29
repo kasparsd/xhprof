@@ -1,16 +1,14 @@
-# xhprof for PHP7 and PHP8
+# xhprof for PHP 7.2–8.5
+
+[![Tests](https://github.com/wpelevator/xhprof/actions/workflows/tests.yml/badge.svg)](https://github.com/wpelevator/xhprof/actions/workflows/tests.yml)
+[![Windows](https://github.com/wpelevator/xhprof/actions/workflows/windows.yml/badge.svg)](https://github.com/wpelevator/xhprof/actions/workflows/windows.yml)
 
 XHProf is a function-level hierarchical profiler for PHP and has a simple HTML based navigational interface. The raw data collection component is implemented in C (as a PHP extension). The reporting/UI layer is all in PHP. It is capable of reporting function-level inclusive and exclusive wall times, memory usage, CPU times and number of calls for each function. Additionally, it supports ability to compare two runs (hierarchical DIFF reports), or aggregate results from multiple runs.
 
-This version supports PHP7 and PHP8
+This is a maintained fork of [longxinH/xhprof](https://github.com/longxinH/xhprof), published as the PIE package `wpelevator/xhprof`. Fixes are sent upstream as pull requests too.
 
 # PHP Version
-- 7.2
-- 7.3
-- 7.4
-- 8.0
-- 8.1
-- 8.2
+PHP 7.2 to 8.5, NTS and ZTS, on Linux, macOS and Windows. CI tests 8.2–8.5 (NTS and ZTS, plus 8.5 with opcache) and 7.2–8.1 (NTS) on Linux, and builds and tests the Windows DLLs.
 
 # Installation
 
@@ -24,10 +22,10 @@ pie install wpelevator/xhprof
 
 ### From source
 ```
-git clone https://github.com/longxinH/xhprof.git ./xhprof
+git clone https://github.com/wpelevator/xhprof.git ./xhprof
 cd xhprof/extension/
-/path/to/php7/bin/phpize
-./configure --with-php-config=/path/to/php7/bin/php-config
+/path/to/php/bin/phpize
+./configure --with-php-config=/path/to/php/bin/php-config
 make && sudo make install
 ```
 
@@ -120,6 +118,8 @@ curl_exec#http://www.baidu.com
 ```
 
 ## PECL Repository
+The PECL package is published from upstream [longxinH/xhprof](https://github.com/longxinH/xhprof).
+
 [![pecl](resource/pecl.png)](https://pecl.php.net/package/xhprof)
 
 # Development
