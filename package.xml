@@ -40,11 +40,11 @@
   <email>longxinhui@php.net</email>
   <active>yes</active>
  </lead>
- <date>2024-07-11</date>
- <time>10:19:00</time>
+ <date>2026-10-29</date>
+ <time>12:00:00</time>
  <version>
-  <release>2.3.10</release>
-  <api>2.3.10</api>
+  <release>2.3.11</release>
+  <api>2.3.11</api>
  </version>
  <stability>
   <release>stable</release>
@@ -52,8 +52,12 @@
  </stability>
  <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache 2.0</license>
  <notes>
-    - Fix build for 8.4 and pcre2 by @andypost in #86
-    - Fix for PHP 8.4 by @remicollet in #87
+    - Fix missing and wrong profile entries for internal functions (upstream #93, #94)
+    - Fix PHP 8.x deprecations and errors in the report UI
+    - Fix tests on PHP 8.5 and with opcache enabled
+    - Require PHP 7.2 or later, the oldest version tested
+    - Test PHP 7.2-8.5 on Linux and build Windows DLLs with GitHub Actions
+    - Install with PIE: pie install wpelevator/xhprof
  </notes>
  <contents>
   <dir name="/">
@@ -112,7 +116,7 @@
  <dependencies>
   <required>
    <php>
-    <min>7.0.0</min>
+    <min>7.2.0</min>
    </php>
    <pearinstaller>
     <min>1.4.0</min>
@@ -122,6 +126,26 @@
  <providesextension>xhprof</providesextension>
  <extsrcrelease />
  <changelog>
+   <release>
+      <date>2026-10-29</date>
+      <version>
+       <release>2.3.11</release>
+       <api>2.3.11</api>
+      </version>
+      <stability>
+       <release>stable</release>
+       <api>stable</api>
+      </stability>
+      <notes>
+       - Fix missing and wrong profile entries for internal functions (upstream #93, #94)
+       - Fix PHP 8.x deprecations and errors in the report UI
+       - Fix tests on PHP 8.5 and with opcache enabled
+       - Require PHP 7.2 or later, the oldest version tested
+       - Test PHP 7.2-8.5 on Linux and build Windows DLLs with GitHub Actions
+       - Install with PIE: pie install wpelevator/xhprof
+      </notes>
+   </release>
+
    <release>
       <date>2024-07-11</date>
       <version>
