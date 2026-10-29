@@ -122,6 +122,18 @@ The PECL package is published from upstream [longxinH/xhprof](https://github.com
 
 [![pecl](resource/pecl.png)](https://pecl.php.net/package/xhprof)
 
+# Known limitations
+
+### Opcache can hide small functions
+
+With opcache enabled, the optimizer inlines trivial functions (for example `function bar() { return 1; }`) into their callers. An inlined function never runs as a call, so it does not appear in the profile and its cost is added to the caller. Profiles taken in production with opcache on can therefore omit small functions that a profile taken without opcache shows. This is how the engine works, not something xhprof can detect per call.
+
+To see every function, profile with `opcache.optimization_level=0` (or opcache disabled). The bundled tests use functions that cannot be inlined so they give the same result with and without opcache.
+
+### Wall time across suspensions
+
+Generators and fibers are profiled per call. Each fiber (PHP 8.1+) has its own call stack, so a function running inside a fiber is attributed to its real caller. A function that is suspended and resumed later keeps its start time, so its wall time includes the time it spent suspended. Calls that are still suspended when `xhprof_disable()` runs are not part of the result.
+
 # Development
 Build the extension and run its tests against any PHP version in Docker, without installing a toolchain locally:
 
