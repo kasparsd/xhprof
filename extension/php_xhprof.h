@@ -249,6 +249,11 @@ ZEND_BEGIN_MODULE_GLOBALS(xhprof)
 
     HashTable *trace_callbacks;
 
+#if PHP_VERSION_ID >= 80100
+    /* Entry stacks of fiber contexts that are not running, by context. */
+    HashTable *fiber_stacks;
+#endif
+
     /* Table of ignored function names and their filter */
     hp_ignored_functions *ignored_functions;
 

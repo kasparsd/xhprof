@@ -80,6 +80,8 @@
    <file name="extension/tests/xhprof_011_prepend.php" role="test" />
    <file name="extension/tests/xhprof_012.phpt" role="test" />
    <file name="extension/tests/xhprof_013.phpt" role="test" />
+   <file name="extension/tests/xhprof_014.phpt" role="test" />
+   <file name="extension/tests/xhprof_015.phpt" role="test" />
    <file name="extension/tests/xhprof_runs_001.phpt" role="test" />
    <file name="extension/tests/xhprof_runs_002.phpt" role="test" />
    <file name="extension/config.m4" role="src" />

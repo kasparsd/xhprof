@@ -227,6 +227,9 @@ static void php_xhprof_init_globals(zend_xhprof_globals *xhprof_globals)
     xhprof_globals->entries = NULL;
     xhprof_globals->root = NULL;
     xhprof_globals->trace_callbacks = NULL;
+#if PHP_VERSION_ID >= 80100
+    xhprof_globals->fiber_stacks = NULL;
+#endif
     xhprof_globals->ignored_functions = NULL;
     xhprof_globals->sampling_interval = XHPROF_DEFAULT_SAMPLING_INTERVAL;
     xhprof_globals->sampling_depth = INT_MAX;
@@ -270,6 +273,9 @@ PHP_MINIT_FUNCTION(xhprof)
 
 #if PHP_VERSION_ID >= 80000
     zend_observer_fcall_register(tracer_observer);
+#if PHP_VERSION_ID >= 80100
+    zend_observer_fiber_switch_register(hp_fiber_switch);
+#endif
 #else
     /* Replace zend_execute with our proxy */
     _zend_execute_ex = zend_execute_ex;
@@ -1245,6 +1251,11 @@ static void hp_stop()
     while (XHPROF_G(entries)) {
         end_profiling();
     }
+
+#if PHP_VERSION_ID >= 80100
+    /* Stacks of suspended fibers. */
+    hp_free_fiber_stacks();
+#endif
 
     /* Stop profiling */
     XHPROF_G(enabled) = 0;
