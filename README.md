@@ -122,6 +122,10 @@ The PECL package is published from upstream [longxinH/xhprof](https://github.com
 
 [![pecl](resource/pecl.png)](https://pecl.php.net/package/xhprof)
 
+# Run files
+
+`XHProfRuns_Default::save_run()` stores each run as JSON in `<run id>.<namespace>.xhprof`. Older versions wrote PHP `serialize()` output; those files are still read, but without allowing any class to be instantiated, so a run file that someone else can write to cannot inject objects. Runs written now cannot be read by an older xhprof UI.
+
 # Known limitations
 
 ### Opcache can hide small functions

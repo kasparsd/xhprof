@@ -133,15 +133,18 @@ class XHProfRuns_Default implements iXHProfRuns {
 
     $contents = file_get_contents($file_name);
     $run_desc = "XHProf Run (Namespace=$type)";
-    // Runs only contain arrays and scalars, so never instantiate objects.
-    return unserialize($contents, array('allowed_classes' => false));
+
+    if ($contents === false) {
+      xhprof_error("Could not read file $file_name");
+      return null;
+    }
+
+    return $this->decode($contents);
   }
 
   public function save_run($xhprof_data, $type, $run_id = null) {
 
-    // Use PHP serialize function to store the XHProf's
-    // raw profiler data.
-    $xhprof_data = serialize($xhprof_data);
+    $encoded = $this->encode($xhprof_data);
 
     if ($run_id === null) {
       $run_id = $this->gen_run_id($type);
@@ -156,7 +159,7 @@ class XHProfRuns_Default implements iXHProfRuns {
     $file = fopen($file_name, 'w');
 
     if ($file) {
-      fwrite($file, $xhprof_data);
+      fwrite($file, $encoded);
       fclose($file);
     } else {
       xhprof_error("Could not open $file_name\n");
@@ -164,6 +167,54 @@ class XHProfRuns_Default implements iXHProfRuns {
 
     // echo "Saved run in {$file_name}.\nRun id = {$run_id}.\n";
     return $run_id;
+  }
+
+  /**
+   * Encode the raw profiler data for storage as JSON.
+   *
+   * Unlike unserialize(), reading JSON back cannot instantiate objects, so
+   * a run file that someone else can write to is not an attack vector.
+   * Function names that are not valid UTF-8 are substituted rather than
+   * failing the whole run.
+   */
+  private function encode($xhprof_data) {
+    $json = json_encode($xhprof_data, JSON_PARTIAL_OUTPUT_ON_ERROR | JSON_INVALID_UTF8_SUBSTITUTE);
+
+    if ($json === false) {
+      // Not expected for plain arrays of numbers. Keep the run readable
+      // in the legacy format instead of losing it.
+      xhprof_error("Could not encode run as JSON: " . json_last_error_msg());
+      return serialize($xhprof_data);
+    }
+
+    return $json;
+  }
+
+  /**
+   * Decode the contents of a run file.
+   *
+   * Files written by older versions are PHP serialized arrays. They are
+   * still read, but never allowed to instantiate classes.
+   */
+  private function decode($contents) {
+    $head = ltrim(substr($contents, 0, 16));
+
+    // Profiler data is an array keyed by "parent==>child", so JSON files
+    // start with "{" ("[" for an empty run). Serialized arrays start with "a:".
+    if ($head !== '' && ($head[0] === '{' || $head[0] === '[')) {
+      $data = json_decode($contents, true);
+
+      if (!is_array($data)) {
+        xhprof_error("Could not decode run: " . json_last_error_msg());
+        return null;
+      }
+
+      return $data;
+    }
+
+    $data = @unserialize($contents, ['allowed_classes' => false]);
+
+    return is_array($data) ? $data : null;
   }
 
   function list_runs() {
